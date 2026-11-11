@@ -1,0 +1,123 @@
+{
+  "last_node_id": 2,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "IridioSequentialPromptFile",
+      "pos": [
+        60,
+        100
+      ],
+      "size": [
+        360,
+        340
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "index",
+          "type": "INT",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "total",
+          "type": "INT",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "",
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "IridioTestPromptOutput",
+      "pos": [
+        500,
+        100
+      ],
+      "size": [
+        230,
+        100
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 1
+        },
+        {
+          "name": "index",
+          "type": "INT",
+          "link": 2
+        },
+        {
+          "name": "total",
+          "type": "INT",
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "STRING"
+    ],
+    [
+      2,
+      1,
+      1,
+      2,
+      1,
+      "INT"
+    ],
+    [
+      3,
+      1,
+      2,
+      2,
+      2,
+      "INT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.85,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}
