@@ -1,0 +1,18 @@
+[project]
+name = "iridio-nodes"
+version = "0.1.0"
+description = "Iridio Nodes for ComfyUI: circular TXT prompt sequences with browser upload and queue-time advancement."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = []
+classifiers = ["Operating System :: OS Independent"]
+
+[project.urls]
+Repository = "https://github.com/Iridio/comfyui-iridio-nodes"
+"Bug Tracker" = "https://github.com/Iridio/comfyui-iridio-nodes/issues"
+
+[tool.comfy]
+PublisherId = "iridio"
+DisplayName = "Iridio Nodes"
+requires-comfyui = ">=0.45.2"

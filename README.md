@@ -1,7 +1,33 @@
 # Iridio Nodes
 
 Custom nodes for ComfyUI. No additional Python or JavaScript dependencies.
-Requires ComfyUI with the V3 custom-node API and its browser frontend.
+Requires ComfyUI 0.45.2 or newer with the V3 custom-node API and its browser
+frontend. Verified with frontend 1.58.5.
+
+## Registry release preparation
+
+Registry metadata targets **iridio-nodes 0.1.0**, publisher **@iridio**.
+These files prepare the release; they do not mean it is already published.
+
+Tag the release commit as `v0.1.0` and push the commit and tag before publishing.
+To publish after reviewing and pushing the release files:
+
+1. Create a Registry publishing API key for publisher `iridio`.
+2. In this GitHub repository's **Settings → Secrets and variables → Actions**,
+   add a repository secret named `REGISTRY_ACCESS_TOKEN` with that key.
+3. Open **Actions → Publish to Comfy Registry → Run workflow**, select the
+   release tag (`v0.1.0`), and run it. Publication is manual: a push alone never
+   publishes a release.
+4. Confirm the action succeeded and the Registry shows version `0.1.0` before
+   announcing availability through ComfyUI Manager.
+
+Never commit the key. Each published version is immutable; increase the version
+in `pyproject.toml` before subsequent releases. `.comfyignore` excludes tests,
+internal documents and CI configuration while keeping Python and browser files.
+The minimum ComfyUI version is the tested baseline, not a claim that earlier
+versions are incompatible. No frontend upgrade dependency is added.
+
+See the [Registry publishing guide](https://docs.comfy.org/registry/publishing).
 
 ## Sequential Prompt File
 
