@@ -1,6 +1,9 @@
 name: Publish to Comfy Registry
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:

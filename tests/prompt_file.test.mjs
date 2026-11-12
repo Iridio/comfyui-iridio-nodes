@@ -55,12 +55,13 @@ test("parser handles BOM, mixed newlines, empty lines and Unicode", () => {
                      ["first", "second café", "third"]);
 });
 
-test("upload sets embedded text, next 1 and preview without a server path", async () => {
+test("upload embeds text and resets next without showing an unused prompt", async () => {
     const node = createNode();
     await upload(node, "prompts.txt", "first\n\nsecond");
     assert.equal(node.widgets[0].value, "first\n\nsecond");
     assert.equal(node.widgets[1].value, 1);
-    assert.equal(elements(node).find(e => e.readOnly).value, "first");
+    assert.equal(elements(node).find(e => e.readOnly).value, "");
+    assert.equal(elements(node).filter(e => e.readOnly).length, 1);
     assert.match(elements(node).map(e => e.textContent).join(" "), /2 prompts/);
 });
 
@@ -86,7 +87,7 @@ test("manual index, normalization, reset and independent nodes", () => {
     node.widgets[1].value = 5;
     node.widgets[1].callback(5);
     assert.equal(node.widgets[1].value, 2);
-    assert.equal(elements(node).find(e => e.readOnly).value, "second");
+    assert.match(elements(node).map(e => e.textContent).join(" "), /Next: 2/);
     const snapshot = { text: node.widgets[0].value, index: node.widgets[1].value };
     elements(node).find(e => e.textContent === "Reset to 1").click();
     assert.equal(node.widgets[1].value, 1);
@@ -106,11 +107,11 @@ test("failed upload keeps the previous text and position", async () => {
     }
 });
 
-test("restored workflow preserves position and preview without advancing on save", () => {
+test("old workflow preserves position without inventing an executed prompt", () => {
     const node = createNode("first\nsecond", 2);
     node.onConfigure?.({});
     assert.equal(node.widgets[1].value, 2);
-    assert.equal(elements(node).find(e => e.readOnly).value, "second");
+    assert.equal(elements(node).find(e => e.readOnly).value, "");
     assert.equal(node.widgets[2].options.serialize, false);
 });
 
@@ -189,4 +190,29 @@ test("replacement between widget serializers cannot mix old text with a new inde
     assert.deepEqual({ content, index }, { content: "first\nsecond", index: 2 });
     node.widgets[1].afterQueued();
     assert.equal(node.widgets[1].value, 1);
+});
+
+test("executed prompt persists independently from next position, reset and upload", async () => {
+    const node = createNode("first\nsecond", 2);
+    const used = { text: "first", index: 1, total: 2 };
+    node.onExecuted?.({ used_prompt: [used] });
+    const display = elements(node).find(e => e["aria-label"] === "prompt");
+    assert.equal(display?.value, "first");
+    assert.deepEqual(node.properties.iridioUsedPrompt, used);
+    assert.equal(node.widgets[1].value, 2);
+    elements(node).find(e => e.textContent === "Reset to 1").click();
+    await upload(node, "replacement.txt", "new prompt");
+    assert.equal(display.value, "first");
+    assert.deepEqual(node.properties.iridioUsedPrompt, used);
+});
+
+test("PNG workflow properties restore used prompt without consuming the next prompt", () => {
+    const node = createNode("first\nsecond", 2);
+    node.properties.iridioUsedPrompt = { text: "second", index: 2, total: 2 };
+    node.onConfigure({});
+    assert.equal(elements(node).find(e => e["aria-label"] === "prompt")?.value, "second");
+    assert.equal(node.widgets[1].value, 2);
+    const old = createNode("old prompt");
+    old.onConfigure({});
+    assert.equal(elements(old).find(e => e["aria-label"] === "prompt")?.value, "");
 });

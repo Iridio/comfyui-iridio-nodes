@@ -7,12 +7,52 @@ import unittest
 
 sys.path.insert(0, os.environ["COMFYUI_PATH"])
 from comfy.cli_args import args
+from comfy_api.latest import io
 
 args.cpu = True
 from sequential_prompt_file import SequentialPromptFile, parse_prompts
 
 
 class SequentialPromptFileTests(unittest.TestCase):
+    def test_execution_reports_used_prompt_and_updates_only_its_workflow_node(self):
+        metadata = {"workflow": {"nodes": [
+            {"id": 7, "properties": {"label": "keep", "iridioUsedPrompt": "stale"}},
+            {"id": 8, "properties": {"iridioUsedPrompt": "other"}},
+        ]}, "other_metadata": "keep"}
+        node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+            io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: metadata,
+        }})
+        result = node.execute(" first \nsecond café", 4)
+        used = {"text": "second café", "index": 2, "total": 2}
+        self.assertEqual(result.result, ("second café", 2, 2))
+        self.assertEqual(result.ui, {"used_prompt": [used]})
+        self.assertEqual(metadata["workflow"]["nodes"][0]["properties"],
+                         {"label": "keep", "iridioUsedPrompt": used})
+        self.assertEqual(metadata["workflow"]["nodes"][1]["properties"],
+                         {"iridioUsedPrompt": "other"})
+        self.assertEqual(metadata["other_metadata"], "keep")
+
+    def test_metadata_is_optional_and_missing_workflow_node_is_ignored(self):
+        for metadata in [None, {}, {"workflow": {"nodes": []}}]:
+            with self.subTest(metadata=metadata):
+                node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+                    io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: metadata,
+                }})
+                self.assertEqual(node.execute("first", 1).ui,
+                                 {"used_prompt": [{"text": "first", "index": 1, "total": 1}]})
+
+    def test_separate_jobs_retain_their_own_used_prompt(self):
+        snapshots = []
+        for position in [1, 2, 3]:
+            metadata = {"workflow": {"nodes": [{"id": 7}]}}
+            node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+                io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: metadata,
+            }})
+            node.execute("first\nsecond", position)
+            snapshots.append(metadata)
+        self.assertEqual([m["workflow"]["nodes"][0]["properties"]["iridioUsedPrompt"]["text"]
+                          for m in snapshots], ["first", "second", "first"])
+
     def test_txt_lines_bom_blank_lines_and_unicode(self):
         self.assertEqual(
             parse_prompts("\ufeff first \r\n\t\r\nsecond café\rthird\n  \n"),

@@ -29,6 +29,7 @@ import comfyui_frontend_package
 args.front_end_root = str(Path(comfyui_frontend_package.__file__).parent / "static")
 
 from aiohttp import web
+import torch
 from app.assets.manager import NoAssets
 from comfy_api.latest import io
 import execution
@@ -47,11 +48,13 @@ class TestPromptOutput(io.ComfyNode):
             inputs=[io.String.Input("prompt", force_input=True),
                     io.Int.Input("index", force_input=True),
                     io.Int.Input("total", force_input=True)],
+            outputs=[io.Image.Output("image")],
         )
 
     @classmethod
     def execute(cls, prompt, index, total):
-        return io.NodeOutput(ui={"prompt": [prompt], "index": [index], "total": [total]})
+        image = torch.full((1, 8, 8, 3), index / 255)
+        return io.NodeOutput(image, ui={"prompt": [prompt], "index": [index], "total": [total]})
 
 
 async def main():
