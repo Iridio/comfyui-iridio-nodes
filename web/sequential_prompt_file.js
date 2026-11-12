@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
-import { setupPromptFile } from "./prompt_file.mjs";
+// ComfyUI sends Cache-Control: no-store for .js modules.
+import { setupPromptFile } from "./prompt_file.js";
 
 app.registerExtension({
     name: "Iridio.SequentialPromptFile",

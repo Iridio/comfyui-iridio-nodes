@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parsePrompts, setupPromptFile } from "../web/prompt_file.mjs";
+import { parsePrompts, setupPromptFile } from "../web/prompt_file.js";
 
 class Element extends EventTarget {
     children = [];

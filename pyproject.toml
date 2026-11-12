@@ -1,6 +1,6 @@
 [project]
 name = "iridio-nodes"
-version = "0.2.0"
+version = "0.2.1"
 description = "Iridio Nodes for ComfyUI: circular TXT prompt sequences with browser upload and queue-time advancement."
 readme = "README.md"
 license = { file = "LICENSE" }
