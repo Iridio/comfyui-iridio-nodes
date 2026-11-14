@@ -6,7 +6,7 @@ frontend. Verified with frontend 1.58.5.
 
 ## Registry publishing
 
-Registry metadata targets **iridio-nodes 0.2.1**, publisher **@iridio**.
+Registry metadata targets **iridio-nodes 0.2.2**, publisher **@iridio**.
 Published versions are immutable; increase `version` in `pyproject.toml` for each release.
 
 To publish a release:
@@ -14,10 +14,10 @@ To publish a release:
 1. Create a Registry publishing API key for publisher `iridio`.
 2. In this GitHub repository's **Settings → Secrets and variables → Actions**,
    add a repository secret named `REGISTRY_ACCESS_TOKEN` with that key.
-3. Commit the release files, tag the commit as `v0.2.1`, and push that tag.
+3. Commit the release files, tag the commit as `v0.2.2`, and push that tag.
    **Publish to Comfy Registry** starts automatically on pushes of `v*` tags.
    Branch pushes do not publish. Manual **Run workflow** remains available.
-4. Confirm the action succeeded and the Registry shows version `0.2.1` before
+4. Confirm the action succeeded and the Registry shows version `0.2.2` before
    announcing availability through ComfyUI Manager.
 
 Never commit the key. `.comfyignore` excludes tests,
@@ -26,6 +26,12 @@ The minimum ComfyUI version is the tested baseline, not a claim that earlier
 versions are incompatible. No frontend upgrade dependency is added.
 
 See the [Registry publishing guide](https://docs.comfy.org/registry/publishing).
+
+## 0.2.2
+
+Save only the selected TXT prompt in both API and workflow image metadata,
+including named widget values. The browser and ordinary workflow exports keep
+the full sequence; reopening a PNG restores its single prompt at position 1.
 
 ## 0.2.1
 
@@ -56,18 +62,25 @@ input, for example CLIP Text Encode. `index` and `total` are integer outputs.
 - Empty, unreadable, invalid UTF-8 or null-containing files show an error and
   preserve the previous file and position.
 
-The text and position are embedded in the workflow. Save/export the workflow
-to retain them. The filename is only a display label: ComfyUI never needs the
+The full TXT and position are retained in ordinary workflow JSON exports.
+Save/export the workflow to keep the sequence. The filename is only a display label: ComfyUI never needs the
 original local path. This design also supports a ComfyUI server on RunPod;
 upload is through the browser and the normal workflow request, with no extra
-port or upload service. The TXT content is included when sharing a workflow.
+port or upload service. Sharing a workflow JSON includes its full TXT content.
 
-Each execution also writes its used prompt/index/total into its own workflow
-metadata. With native **Save Image** and metadata enabled, reopening the PNG
-restores that image's used-prompt display and input position, even if many later
-jobs were queued or the browser loaded a replacement TXT. Older workflows without
+Before execution, each submitted Iridio node is resolved to its selected line.
+The queued API graph and the workflow embedded in the image contain **only that
+prompt**, never the other TXT lines. Original index/total are retained as metadata;
+the browser's full TXT and advancing counter remain unchanged. With native
+**Save Image** and metadata enabled, reopening the PNG restores that image's
+prompt in a one-prompt workflow at position 1. Use the ordinary workflow JSON
+to resume the full sequence. Older workflows without
 this information show an empty prompt box until execution. Custom image savers
 must preserve workflow metadata for this behavior.
+
+PNG isolation currently covers top-level Iridio nodes. Iridio nodes inside
+subgraphs are not covered: shared definitions need per-instance metadata mapping
+and dedicated replay tests before they can offer the same guarantee.
 
 The counter belongs to each browser workflow/node, using ComfyUI's queue-widget
 hooks (including partial submissions). Separate tabs/users do not share a
@@ -102,7 +115,8 @@ queue starts paused. It does not install the plugin or load other plugins.
    worker, and assert 100 successful jobs, exact prompt/index/total outputs,
    two complete cycles, no sequence/output cache hits and an empty queue. It
    downloads all 100 PNGs saved by native Save Image and checks the used prompt,
-   input snapshot and image marker in each. `--save-dir /tmp/iridio-pngs` retains
+   selected input and image marker in each, and rejects any unselected TXT line
+   in any PNG text chunk. `--save-dir /tmp/iridio-pngs` retains
    those files for browser reload checks; `--url` selects a different server port.
 5. Stop the test server with Ctrl-C. Its test output node is not part of the plugin.
 

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import importlib.util
 import os
 from pathlib import Path
@@ -11,9 +12,130 @@ from comfy_api.latest import io
 
 args.cpu = True
 from sequential_prompt_file import SequentialPromptFile, parse_prompts
+import sequential_prompt_file
 
 
 class SequentialPromptFileTests(unittest.TestCase):
+    def test_queued_request_contains_only_selected_prompt_in_both_graphs(self):
+        request = {"prompt": {
+            "7": {"class_type": "IridioSequentialPromptFile",
+                  "inputs": {"prompt_text": "private first\nselected café\nprivate third", "next_prompt": 5}},
+            "8": {"class_type": "OtherNode", "inputs": {"text": "untouched"}},
+        }, "extra_data": {"extra_pnginfo": {"workflow": {"nodes": [
+            {"id": 7, "widgets_values": ["private first\nselected café\nprivate third", 5, ""],
+             "widgets_values_named": {"prompt_text": "private first\nselected café\nprivate third",
+                                      "next_prompt": 5, "other": "keep"},
+             "properties": {"label": "keep"}},
+            {"id": 8, "widgets_values": ["untouched"]},
+        ]}, "other_metadata": "keep"}}}
+        working = copy.deepcopy(request)
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        inputs = prepared["prompt"]["7"]["inputs"]
+        self.assertEqual(inputs, {"prompt_text": "selected café", "next_prompt": 1})
+        metadata = prepared["extra_data"]["extra_pnginfo"]
+        source = metadata["workflow"]["nodes"][0]
+        self.assertEqual(source["widgets_values"], ["selected café", 1, ""])
+        self.assertEqual(source["widgets_values_named"],
+                         {"prompt_text": "selected café", "next_prompt": 1, "other": "keep"})
+        used = {"text": "selected café", "index": 2, "total": 3}
+        self.assertEqual(source["properties"], {"label": "keep", "iridioUsedPrompt": used})
+        self.assertEqual(metadata["other_metadata"], "keep")
+        self.assertEqual(prepared["prompt"]["8"], working["prompt"]["8"])
+        self.assertEqual(metadata["workflow"]["nodes"][1],
+                         working["extra_data"]["extra_pnginfo"]["workflow"]["nodes"][1])
+        self.assertNotIn("private first", str(prepared))
+        self.assertNotIn("private third", str(prepared))
+        node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+            io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: metadata,
+        }})
+        result = node.execute(**inputs)
+        self.assertEqual(result.result, ("selected café", 2, 3))
+        self.assertEqual(result.ui, {"used_prompt": [used]})
+
+    def test_headless_queue_preserves_original_index_and_total_without_workflow(self):
+        request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+                    "inputs": {"prompt_text": "first\nsecond", "next_prompt": 2}}}}
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+            io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: prepared["extra_data"]["extra_pnginfo"],
+        }})
+        self.assertEqual(node.execute(**prepared["prompt"]["7"]["inputs"]).result,
+                         ("second", 2, 2))
+        self.assertNotIn("first", str(prepared))
+
+    def test_selected_later_line_bom_is_not_reparsed_as_a_file_bom(self):
+        request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+                    "inputs": {"prompt_text": "first\n\ufeffsecond", "next_prompt": 2}}}}
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+            io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: prepared["extra_data"]["extra_pnginfo"],
+        }})
+        self.assertEqual(node.execute(**prepared["prompt"]["7"]["inputs"]).result,
+                         ("\ufeffsecond", 2, 2))
+        self.assertEqual(SequentialPromptFile.execute(**prepared["prompt"]["7"]["inputs"]).result,
+                         ("\ufeffsecond", 1, 1))
+
+    def test_stale_selection_metadata_cannot_replace_the_actual_output_text(self):
+        metadata = {"iridioPromptSelections": {"7": {"text": "stale text", "index": 9, "total": 10}}}
+        node = SequentialPromptFile.PREPARE_CLASS_CLONE({"hidden_inputs": {
+            io.Hidden.unique_id: "7", io.Hidden.extra_pnginfo: metadata,
+        }})
+        self.assertEqual(node.execute("actual text", 1).result, ("actual text", 1, 1))
+
+    def test_queue_drops_client_selection_metadata_for_linked_inputs(self):
+        request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+                    "inputs": {"prompt_text": ["upstream", 0], "next_prompt": 1}}},
+                   "extra_data": {"extra_pnginfo": {"iridioPromptSelections": {
+                       "7": {"text": "stale text", "index": 9, "total": 10}}}}}
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        self.assertNotIn("iridioPromptSelections", prepared["extra_data"]["extra_pnginfo"])
+
+    def test_invalid_inputs_remain_on_the_existing_execution_error_path(self):
+        for text, position in [("", 1), ("first\x00second", 1), ("first", 0),
+                               ("first", "invalid"), (["upstream", 0], 1)]:
+            with self.subTest(text=text, position=position):
+                request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+                            "inputs": {"prompt_text": text, "next_prompt": position}}}}
+                before = copy.deepcopy(request)
+                self.assertEqual(sequential_prompt_file.prepare_prompt(request), before)
+
+    def test_queue_normalizes_literals_accepted_by_comfyui_before_selecting(self):
+        for position, index, expected in [("2", 2, "second"), (2.8, 2, "second"),
+                                          ({"__value__": 2}, 2, "second"), (True, 1, "first")]:
+            with self.subTest(position=position):
+                request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+                    "inputs": {"prompt_text": {"__value__": "first\nsecond"}, "next_prompt": position}}}}
+                prepared = sequential_prompt_file.prepare_prompt(request)
+                self.assertEqual(prepared["prompt"]["7"]["inputs"],
+                                 {"prompt_text": expected, "next_prompt": 1})
+                selection = prepared["extra_data"]["extra_pnginfo"]["iridioPromptSelections"]["7"]
+                self.assertEqual(selection, {"text": expected, "index": index, "total": 2})
+
+    def test_null_optional_metadata_still_sanitizes_headless_request(self):
+        request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+            "inputs": {"prompt_text": "private first\nselected second", "next_prompt": 2}}},
+            "extra_data": {"extra_pnginfo": None}}
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        self.assertNotIn("private first", str(prepared))
+        self.assertEqual(prepared["prompt"]["7"]["inputs"],
+                         {"prompt_text": "selected second", "next_prompt": 1})
+
+    def test_muted_source_omitted_from_api_does_not_leak_its_txt(self):
+        request = {"prompt": {"7": {"class_type": "IridioSequentialPromptFile",
+            "inputs": {"prompt_text": "selected", "next_prompt": 1}}},
+            "extra_data": {"extra_pnginfo": {"workflow": {"nodes": [
+                {"id": 7, "type": "IridioSequentialPromptFile", "widgets_values": ["selected", 1]},
+                {"id": 8, "type": "IridioSequentialPromptFile", "mode": 2,
+                 "widgets_values": ["private muted first\nprivate muted second", 2],
+                 "widgets_values_named": {"prompt_text": "private muted first\nprivate muted second", "next_prompt": 2},
+                 "properties": {"iridioUsedPrompt": {"text": "private previous"}}},
+            ]}}}}
+        prepared = sequential_prompt_file.prepare_prompt(request)
+        self.assertNotIn("private", str(prepared))
+        muted = prepared["extra_data"]["extra_pnginfo"]["workflow"]["nodes"][1]
+        self.assertEqual(muted["widgets_values"], ["", 1])
+        self.assertEqual(muted["widgets_values_named"], {"prompt_text": "", "next_prompt": 1})
+
     def test_execution_reports_used_prompt_and_updates_only_its_workflow_node(self):
         metadata = {"workflow": {"nodes": [
             {"id": 7, "properties": {"label": "keep", "iridioUsedPrompt": "stale"}},
@@ -94,7 +216,8 @@ class SequentialPromptFileTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
-        extension = asyncio.run(module.comfy_entrypoint())
+        self.assertTrue(callable(module.comfy_entrypoint))
+        extension = module.IridioNodes()
         classes = asyncio.run(extension.get_node_list())
         schema = classes[0].GET_SCHEMA()
         self.assertEqual(schema.node_id, "IridioSequentialPromptFile")
