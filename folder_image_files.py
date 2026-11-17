@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path, PureWindowsPath
 import re
+import tempfile
 
 from PIL import Image, ImageOps
 import numpy as np
@@ -27,11 +28,21 @@ def _absolute_path(value):
 def allowed_roots():
     roots = [Path(folder_paths.get_input_directory()).resolve(),
              Path(folder_paths.get_output_directory()).resolve()]
-    config = Path(folder_paths.get_user_directory()) / 'iridio' / 'allowed_folders.json'
+    data = _read_folder_config()
+    roots.extend(_absolute_path(value) for value in data['folders'])
+    return list(dict.fromkeys(roots))
+
+
+def _folder_config_path():
+    return Path(folder_paths.get_user_directory()) / 'iridio' / 'allowed_folders.json'
+
+
+def _read_folder_config():
+    config = _folder_config_path()
     try:
         content = config.read_text(encoding='utf-8')
     except FileNotFoundError:
-        return roots
+        return {'folders': []}
     if len(content) > 65536:
         raise ValueError('iridio/allowed_folders.json is too large.')
     try:
@@ -40,8 +51,37 @@ def allowed_roots():
         raise ValueError('Fix invalid JSON in iridio/allowed_folders.json.') from error
     if not isinstance(data, dict) or not isinstance(data.get('folders'), list):
         raise ValueError('iridio/allowed_folders.json needs a folders array.')
-    roots.extend(_absolute_path(value) for value in data['folders'])
-    return list(dict.fromkeys(roots))
+    for value in data['folders']:
+        validate_folder_path(value)
+    return data
+
+
+def remember_picked_folder(folder):
+    path = _absolute_path(folder)
+    if not path.is_dir():
+        raise FileNotFoundError('Selected folder not found.')
+    data = _read_folder_config()
+    if str(path) not in data['folders']:
+        data['folders'].append(str(path))
+        content = json.dumps(data, ensure_ascii=False, indent=2)
+        if len(content) > 65536:
+            raise ValueError('iridio/allowed_folders.json would be too large.')
+        config = _folder_config_path()
+        config.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=config.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            try:
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+            except BaseException:
+                temporary.unlink(missing_ok=True)
+                raise
+        try:
+            os.replace(temporary, config)
+        finally:
+            temporary.unlink(missing_ok=True)
+    return str(path)
 
 
 def resolve_folder(folder):

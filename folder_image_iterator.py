@@ -101,7 +101,7 @@ class FolderImageIterator(io.ComfyNode):
             description='One server-folder image per run. Next image advances on successful queue submission and wraps to 1. Top-level graphs only.',
             inputs=[
                 io.String.Input('folder', default='', socketless=True, dynamic_prompts=False,
-                                tooltip='Absolute folder on the ComfyUI server, also on RunPod. External roots need iridio/allowed_folders.json.'),
+                                tooltip='Absolute folder on the ComfyUI server. Browse opens the local OS picker; remote roots need iridio/allowed_folders.json.'),
                 io.String.Input('selection_json', default='[]', socketless=True, dynamic_prompts=False,
                                 tooltip='Ordered image selection. Use Select images to choose files.'),
                 io.Int.Input('next_image', display_name='Next image', default=1, min=1, max=2147483647,

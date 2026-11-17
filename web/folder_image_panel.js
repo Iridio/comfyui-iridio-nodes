@@ -44,6 +44,8 @@ function installStyle() {
     .iridio-fi-tile img{width:100%;height:95px;object-fit:contain;background:var(--comfy-input-bg,#222)}
     .iridio-fi-tile[aria-pressed=true]{outline:2px solid var(--fi-accent);outline-offset:1px}
     .iridio-fi-dirlist{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+    .iridio-fi-dialog .iridio-fi-folder-row{border:0;background:transparent;border-radius:0;text-align:left;display:flex;align-items:center;gap:9px;padding:8px}
+    .iridio-fi-dialog .iridio-fi-folder-row:hover{background:var(--comfy-input-bg,#222)}
     @media(pointer:coarse){.iridio-fi button,.iridio-fi input,.iridio-fi-dialog button{min-height:44px}}
     `;
     document.head.append(style);
@@ -239,29 +241,70 @@ export function setupFolderImageIterator(node, api) {
             if (session === token) { status.textContent = cause.message; status.setAttribute('role', 'alert'); }
         }
     };
+    const useFolder = async candidate => {
+        close();
+        const token = session;
+        const data = await allFiles(candidate, () => session === token);
+        if (session !== token) return;
+        if (folder.value !== data.folder) {
+            folder.value = data.folder;
+            selection.value = JSON.stringify(data.files.map(file => file.file));
+            next.value = 1; revision++;
+        }
+        for (const file of data.files) metadata.set(file.file, file);
+        error.hidden = true; render();
+    };
     const browse = async (base = null, offset = 0) => {
-        const box = dialog('Browse server folders');
+        const box = dialog('Choose a folder', () => {path.value = folder.value;});
         const token = session;
         const status = element('p', 'iridio-fi-muted', 'Loading server folders…');
-        const cancel = button('Cancel', close); box.append(status, cancel);
+        const cancel = button('Cancel', () => {path.value = folder.value; close();}); box.append(status, cancel);
         try {
             const data = await request('browse', { ...(base ? {path: base} : {}), offset, limit: 100 });
             if (session !== token) return;
             const list = element('div', 'iridio-fi-dirlist');
-            for (const dir of data.dirs) list.append(button(dir.name, () => browse(dir.path)));
+            for (const dir of data.dirs) {
+                const row = button('', () => browse(dir.path));
+                row.className = 'iridio-fi-folder-row';
+                row.setAttribute('aria-label', dir.name);
+                const icon = element('span', '', '📁'); icon.setAttribute('aria-hidden', 'true');
+                row.append(icon, element('span', '', dir.name)); list.append(row);
+            }
             const navigation = element('div', 'iridio-fi-row');
-            navigation.append(button('Allowed roots', () => browse()));
             if (data.parent) navigation.append(button('Parent folder', () => browse(data.parent)));
+            else if (data.path) navigation.append(button('Locations', () => browse()));
             if (offset) navigation.append(button('Previous page', () => browse(base, Math.max(0, offset - 100))));
             if (offset + 100 < data.total) navigation.append(button('Next page', () => browse(base, offset + 100)));
             const actions = element('div', 'iridio-fi-row');
-            if (data.path) actions.append(button('Use folder', () => {close(); openGallery(false, data.path);}, true));
+            if (data.path) actions.append(button('Use this folder', async () => {
+                try {await useFolder(data.path);} catch (cause) {error.textContent = cause.message; error.hidden = false;}
+            }, true));
             actions.append(cancel);
-            box.replaceChildren(element('h3', '', 'Browse server folders'), element('p', '', data.path || 'Allowed server folders'), navigation, list, actions);
+            box.replaceChildren(element('h3', '', 'Choose a folder'), element('p', '', data.path ? `Location: ${data.path}` : 'Server folders'), navigation, list, actions);
         } catch (cause) { if (session === token) {status.textContent = cause.message; status.setAttribute('role', 'alert');} }
     };
+    const browseButton = button('Browse', async () => {
+        const pickerSession = session, pickerRevision = revision;
+        browseButton.disabled = true;
+        error.hidden = true;
+        try {
+            const response = await api.fetchApi('/iridio/folder-images/pick-native', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({path: folder.value}),
+            });
+            const result = await response.json();
+            if (session !== pickerSession || revision !== pickerRevision) return;
+            if (!response.ok) throw new Error(result.message || 'Could not select a folder.');
+            if (result.path) await useFolder(result.path);
+            else if (result.unavailable) await browse(path.value.trim() || null);
+            else if (result.busy) throw new Error('A folder selection window is already open.');
+        } catch (cause) {
+            error.textContent = cause.message; error.hidden = false;
+        } finally {
+            browseButton.disabled = false;
+        }
+    });
     const folderGroup = element('div'); folderGroup.append(element('label', '', 'Server folder'));
-    const folderRow = element('div', 'iridio-fi-row'); folderRow.append(path, button('Browse', () => browse())); folderGroup.append(folderRow);
+    const folderRow = element('div', 'iridio-fi-row'); folderRow.append(path, browseButton); folderGroup.append(folderRow);
     const actions = element('div', 'iridio-fi-row');
     actions.append(button('Select images', () => openGallery(), true), button('Refresh', () => openGallery(true)));
     const position = element('div'); position.append(element('label', '', 'Next image'));

@@ -23,6 +23,7 @@ function fixture(names=['1.png','2.png','10.png']){
     const api={apiURL:path=>'/proxy'+path,async fetchApi(path){
         requests.push(path);
         assert.ok(path.startsWith('/iridio/folder-images/'));
+        if(path.includes('/pick-native'))return {ok:true,json:async()=>({unavailable:true})};
         const params=new URL('http://host'+path).searchParams;
         const all=names.map(file=>({file,name:file,size:10,mtime_ns:'123'}));
         const offset=Number(params.get('offset')||0),limit=Number(params.get('limit')||200);
@@ -30,7 +31,7 @@ function fixture(names=['1.png','2.png','10.png']){
     }};
     setupFolderImageIterator(node,api);
     const elements=()=>{const all=[];const walk=e=>{all.push(e);e.children?.forEach(walk);};walk(node.widgets[3].element);walk(document.body);return all;};
-    const button=label=>elements().find(e=>e.textContent===label);
+    const button=label=>elements().find(e=>e.textContent===label||e.attributes?.['aria-label']===label);
     const serialize=()=>Object.fromEntries(node.widgets.slice(0,3).map(w=>[w.name,w.serializeValue?.()??w.value]));
     return {node,api,button,elements,serialize,names,requests};
 }
@@ -119,13 +120,58 @@ test('large gallery loads only its visible page before an explicit select all',a
     assert.equal(new URL('http://host'+requests[1]).searchParams.get('offset'),'24');
 });
 
-test('cancel gallery restores the original visible folder as well as the queued value',async()=>{
+test('cancel remote folder browser restores the original visible folder and queued value',async()=>{
     const {node,button,elements,api}=fixture();
-    api.fetchApi=async path=>({ok:true,json:async()=>path.includes('/browse') ?
+    api.fetchApi=async path=>({ok:true,json:async()=>path.includes('/pick-native') ? {unavailable:true} : path.includes('/browse') ?
         (path.includes('path=')?{path:'/other',dirs:[],parent:null,total:0}:{path:null,dirs:[{name:'Other',path:'/other'}],total:1}):
         {folder:'/other',files:[{file:'new.png',name:'new.png',mtime_ns:'1',size:10}],total:1,offset:0}});
+    elements().find(e=>e.attributes?.['aria-label']==='Server folder').value='';
     button('Browse').click();await tick();button('Other').click();await tick();
-    button('Use folder').click();await tick();button('Cancel').click();
+    button('Cancel').click();
     const input=elements().find(e=>e.attributes?.['aria-label']==='Server folder');
     assert.equal(input.value,'/input');assert.equal(node.widgets[0].value,'/input');
+});
+
+test('Browse opens the native picker first and uses the chosen folder',async()=>{
+    const {node,button,api,requests}=fixture();
+    api.fetchApi=async(path,options)=>{
+        requests.push(path);
+        if(path.endsWith('/pick-native')){
+            assert.equal(options.method,'POST');
+            assert.equal(JSON.parse(options.body).path,'/input');
+            return {ok:true,json:async()=>({path:'/native-choice'})};
+        }
+        assert.ok(path.includes('/list?path=%2Fnative-choice'));
+        return {ok:true,json:async()=>({folder:'/native-choice',files:[{file:'picked.png',name:'picked.png'}],total:1,offset:0})};
+    };
+    button('Browse').click();await tick();
+    assert.equal(requests[0],'/iridio/folder-images/pick-native');
+    assert.equal(button('Allowed roots'),undefined);
+    assert.equal(document.body.children.length,0);
+    assert.equal(node.widgets[0].value,'/native-choice');
+    assert.equal(node.widgets[1].value,'["picked.png"]');
+});
+
+test('native cancel preserves the folder and never opens the server browser',async()=>{
+    const {node,button,api}=fixture();
+    api.fetchApi=async()=>({ok:true,json:async()=>({cancelled:true})});
+    button('Browse').click();await tick();
+    assert.equal(document.body.children.length,0);
+    assert.equal(node.widgets[0].value,'/input');
+    assert.equal(button('Browse').disabled,false);
+});
+
+test('native response after workflow replacement cannot apply a stale folder',async()=>{
+    const {node,button,api,requests}=fixture();
+    let finish;
+    api.fetchApi=path=>{
+        requests.push(path);
+        return new Promise(resolve=>{finish=resolve;});
+    };
+    button('Browse').click();
+    node.widgets[0].value='/newer-workflow';node.onConfigure();
+    finish({ok:true,json:async()=>({path:'/stale-native-folder'})});await tick();
+    assert.deepEqual(requests,['/iridio/folder-images/pick-native']);
+    assert.equal(node.widgets[0].value,'/newer-workflow');
+    assert.equal(document.body.children.length,0);
 });

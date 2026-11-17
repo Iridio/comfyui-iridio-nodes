@@ -104,9 +104,14 @@ processing workflow, ending in a Save Image node. This node loads **one file
 per run**, never an image list. Use ComfyUI's queue batch count to run it many
 times: 100 runs with 50 selected files processes `1…50, 1…50`.
 
-- Enter an absolute **Server folder** or use **Browse**. Browse explores the
-  ComfyUI server, including on RunPod; it does not select your browser computer's
-  files. Use **Select images**, select thumbnails, then **Apply selection**.
+- Enter an absolute **Server folder** or use **Browse**. On a local desktop,
+  Browse opens the native system folder dialog (macOS, Windows, or Linux with
+  zenity/kdialog). Picking a new folder remembers it and selects its images;
+  cancelling changes nothing and opens no other window. **Select images** lets
+  you change that selection through thumbnails and **Apply selection**.
+- On a remote/headless server, including RunPod, Browse uses a server folder
+  navigator. It never opens your browser computer's folder picker for a remote
+  server. Only server folders already allowed by the configuration are shown.
 - Files directly in that folder are ordered naturally by name (`1, 2, 10`).
   **Select all**, **Clear** and gallery pages control the selection; there are no
   subfolders, resize or crop operations.
@@ -132,9 +137,10 @@ times: 100 runs with 50 selected files processes `1…50, 1…50`.
 
 ### Server folder access
 
-ComfyUI's input/output directories are allowed by default. To use another
-directory, create `<ComfyUI user directory>/iridio/allowed_folders.json` on the
-server, for example:
+ComfyUI's input/output directories are allowed by default. A local native Browse
+selection adds the chosen folder to the allowed list automatically. On a remote
+server, or when typing another folder manually, create
+`<ComfyUI user directory>/iridio/allowed_folders.json`, for example:
 
 ```json
 {"folders": ["/workspace/images"]}
@@ -142,7 +148,8 @@ server, for example:
 
 Use an absolute path. This file is read live; a malformed file fails closed.
 Browse/list/thumbnail/execution use the same policy. Links escaping the selected
-folder are refused. There is no web endpoint that grants filesystem access.
+folder are refused. The native-picker endpoint accepts only a local, same-origin
+request and remembers only the OS dialog's result, never a request-supplied path.
 On RunPod keep images and the user directory on persistent storage, and protect
 the ComfyUI server through its normal access controls. This is not a multi-user
 filesystem sandbox against an administrator changing files or links concurrently.
