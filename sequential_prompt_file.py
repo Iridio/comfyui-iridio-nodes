@@ -78,7 +78,7 @@ class SequentialPromptFile(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="IridioSequentialPromptFile",
-            display_name="Sequential Prompt File",
+            display_name="Sequential Prompt File (Iridio)",
             category="Iridio Nodes",
             description="Load a UTF-8 TXT file in the browser. One prompt per non-empty line. "
                         "Next prompt advances after each successful queue submission and wraps to 1. "

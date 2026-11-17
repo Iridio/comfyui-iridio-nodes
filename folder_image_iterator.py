@@ -97,7 +97,7 @@ class FolderImageIterator(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         return io.Schema(
-            node_id=NODE_ID, display_name='Folder Image Iterator', category='Iridio Nodes',
+            node_id=NODE_ID, display_name='Folder Image Iterator (Iridio)', category='Iridio Nodes',
             description='One server-folder image per run. Next image advances on successful queue submission and wraps to 1. Top-level graphs only.',
             inputs=[
                 io.String.Input('folder', default='', socketless=True, dynamic_prompts=False,

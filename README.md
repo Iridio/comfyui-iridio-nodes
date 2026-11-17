@@ -46,9 +46,9 @@ the full sequence; reopening a PNG restores its single prompt at position 1.
 Fix stale node interfaces after updates by serving the browser helper as `.js`,
 which ComfyUI marks `Cache-Control: no-store`. No workflow changes are required.
 
-## Sequential Prompt File
+## Sequential Prompt File (Iridio)
 
-Add **Iridio Nodes → Sequential Prompt File** and connect `prompt` to a text
+Add **Iridio Nodes → Sequential Prompt File (Iridio)** and connect `prompt` to a text
 input, for example CLIP Text Encode. `index` and `total` are integer outputs.
 
 - **Upload TXT** selects a UTF-8 `.txt` file from your browser's computer.
@@ -97,9 +97,9 @@ advance their own index; resubmitting the same API JSON selects the same line.
 As with ComfyUI's seed controls, successful submissions also advance a node
 that is unused by the selected output. Reset does not rewrite queue/history.
 
-## Folder Image Iterator
+## Folder Image Iterator (Iridio)
 
-Add **Iridio Nodes → Folder Image Iterator** and connect `image` to your
+Add **Iridio Nodes → Folder Image Iterator (Iridio)** and connect `image` to your
 processing workflow, ending in a Save Image node. This node loads **one file
 per run**, never an image list. Use ComfyUI's queue batch count to run it many
 times: 100 runs with 50 selected files processes `1…50, 1…50`.
