@@ -6,7 +6,7 @@ frontend. Verified with frontend 1.58.5.
 
 ## Registry publishing
 
-Registry metadata targets **iridio-nodes 0.2.2**, publisher **@iridio**.
+Registry metadata targets **iridio-nodes 0.3.0**, publisher **@iridio**.
 Published versions are immutable; increase `version` in `pyproject.toml` for each release.
 
 To publish a release:
@@ -14,10 +14,10 @@ To publish a release:
 1. Create a Registry publishing API key for publisher `iridio`.
 2. In this GitHub repository's **Settings → Secrets and variables → Actions**,
    add a repository secret named `REGISTRY_ACCESS_TOKEN` with that key.
-3. Commit the release files, tag the commit as `v0.2.2`, and push that tag.
+3. Commit the release files, tag the commit as `v0.3.0`, and push that tag.
    **Publish to Comfy Registry** starts automatically on pushes of `v*` tags.
    Branch pushes do not publish. Manual **Run workflow** remains available.
-4. Confirm the action succeeded and the Registry shows version `0.2.2` before
+4. Confirm the action succeeded and the Registry shows version `0.3.0` before
    announcing availability through ComfyUI Manager.
 
 Never commit the key. `.comfyignore` excludes tests,
@@ -26,6 +26,14 @@ The minimum ComfyUI version is the tested baseline, not a claim that earlier
 versions are incompatible. No frontend upgrade dependency is added.
 
 See the [Registry publishing guide](https://docs.comfy.org/registry/publishing).
+
+## 0.3.0
+
+Add **Folder Image Iterator**: select images from a server folder, process one
+image per run and loop back to the first after the last. Includes a paged
+thumbnail gallery, Next image, Reset, isolated PNG source metadata and Evoluzione
+green accents (`#90F208`). Uses **Select images**; subfolders are not included.
+No additional dependencies or Pixaroma installation required.
 
 ## 0.2.2
 

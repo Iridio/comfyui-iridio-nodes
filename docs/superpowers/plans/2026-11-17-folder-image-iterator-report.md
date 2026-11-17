@@ -2,6 +2,8 @@
 
 17 novembre 2026. Design, piano e scelte approvati dall'utente; successiva correzione della dicitura del pulsante da Pick images a **Select images** applicata a interfaccia, tooltip, test e documentazione.
 
+Chiusura successiva autorizzata dall'utente: integrazione su main e release **0.3.0**, senza aggiungere il supporto alle sottocartelle. I riferimenti a 0.2.2 e alla mancata pubblicazione nelle sezioni seguenti descrivono la fase di sviluppo precedente alla release.
+
 ## Risultato
 
 Nodo V3 autonomo in Iridio Nodes, ID `IridioFolderImageIterator`. Legge una sola immagine da una cartella del server per run, avanza all'accodamento riuscito e ritorna alla prima dopo l'ultima. Navigazione cartelle e selezione grafica non richiedono Pixaroma. Accento #90F208, Select images, Refresh, Next image, Reset e Last executed separato dalla prossima immagine.
