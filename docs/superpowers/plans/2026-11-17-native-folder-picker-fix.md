@@ -25,3 +25,8 @@ Scrittura della configurazione atomica, sotto lock del picker; chiavi esistenti 
 - Non verificati dialoghi reali Windows/Linux, RunPod live e integrazione nel Comfy Desktop installato. Nessuna modifica all'installazione dell'utente o pubblicazione automatica di una nuova versione.
 
 La release Registry 0.3.0 è immutabile: la correzione richiede una nuova patch release, non la sostituzione dell'archivio già pubblicato.
+
+Chiusura autorizzata dall'utente il 17 novembre 2026: integrazione in main e
+pubblicazione della versione **0.3.1**, comprendendo anche i display name
+**Sequential Prompt File (Iridio)** e **Folder Image Iterator (Iridio)**.
+Gli identificatori interni rimangono invariati.

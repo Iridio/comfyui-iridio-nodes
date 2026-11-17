@@ -6,7 +6,7 @@ frontend. Verified with frontend 1.58.5.
 
 ## Registry publishing
 
-Registry metadata targets **iridio-nodes 0.3.0**, publisher **@iridio**.
+Registry metadata targets **iridio-nodes 0.3.1**, publisher **@iridio**.
 Published versions are immutable; increase `version` in `pyproject.toml` for each release.
 
 To publish a release:
@@ -14,10 +14,10 @@ To publish a release:
 1. Create a Registry publishing API key for publisher `iridio`.
 2. In this GitHub repository's **Settings → Secrets and variables → Actions**,
    add a repository secret named `REGISTRY_ACCESS_TOKEN` with that key.
-3. Commit the release files, tag the commit as `v0.3.0`, and push that tag.
+3. Commit the release files, tag the commit as `v0.3.1`, and push that tag.
    **Publish to Comfy Registry** starts automatically on pushes of `v*` tags.
    Branch pushes do not publish. Manual **Run workflow** remains available.
-4. Confirm the action succeeded and the Registry shows version `0.3.0` before
+4. Confirm the action succeeded and the Registry shows version `0.3.1` before
    announcing availability through ComfyUI Manager.
 
 Never commit the key. `.comfyignore` excludes tests,
@@ -26,6 +26,18 @@ The minimum ComfyUI version is the tested baseline, not a claim that earlier
 versions are incompatible. No frontend upgrade dependency is added.
 
 See the [Registry publishing guide](https://docs.comfy.org/registry/publishing).
+
+## 0.3.1
+
+Browse now opens the native folder picker on a local desktop, without the
+intermediate input/output buttons. A newly chosen folder is remembered and its
+images selected; cancelling does not open another window. Remote/headless
+servers retain server-side folder navigation.
+
+Both nodes now have the **(Iridio)** display-name suffix in search. Internal node
+IDs are unchanged, preserving saved workflow compatibility. Verified with
+41 Python tests and 27 JavaScript tests; native UI interaction across platforms
+and live RunPod remain unverified.
 
 ## 0.3.0
 
