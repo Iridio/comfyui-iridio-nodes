@@ -89,13 +89,90 @@ advance their own index; resubmitting the same API JSON selects the same line.
 As with ComfyUI's seed controls, successful submissions also advance a node
 that is unused by the selected output. Reset does not rewrite queue/history.
 
+## Folder Image Iterator
+
+Add **Iridio Nodes → Folder Image Iterator** and connect `image` to your
+processing workflow, ending in a Save Image node. This node loads **one file
+per run**, never an image list. Use ComfyUI's queue batch count to run it many
+times: 100 runs with 50 selected files processes `1…50, 1…50`.
+
+- Enter an absolute **Server folder** or use **Browse**. Browse explores the
+  ComfyUI server, including on RunPod; it does not select your browser computer's
+  files. Use **Select images**, select thumbnails, then **Apply selection**.
+- Files directly in that folder are ordered naturally by name (`1, 2, 10`).
+  **Select all**, **Clear** and gallery pages control the selection; there are no
+  subfolders, resize or crop operations.
+- **Next image** is editable and starts at 1. A successful queue submission
+  advances it, wrapping after the last file. **Reset to 1** changes future
+  submissions only. A rejected submission does not advance; cancelling an
+  already queued job or an execution error consumes its reserved position.
+- **Next to queue** and **Last executed** are separate. Changing the selection
+  or folder, or applying **Refresh**, resets Next image to 1. Gallery/Browse
+  edits are drafts until confirmed; Cancel preserves the current sequence.
+  Refresh retains existing selections and identifies missing files; it does not
+  automatically select new images.
+- Outputs: `image`, `mask`, `width`, `height`, `filename` (no extension), `index`,
+  `total`, `path` (absolute resolved source path). The mask is inverted alpha,
+  or zero for an opaque image. PNG/JPEG/WebP/BMP/TIFF/GIF are supported; animated
+  files and multi-page TIFFs use only the first frame/page. EXIF orientation is
+  applied; integer 16-bit images are scaled to 8-bit values. No implicit resize.
+- Each submitted job retains its selected path and original index/total.
+  Files are read **at execution**, not copied when queued: changing a source
+  changes what will be loaded. Missing, unreadable or denied files fail that job
+  explicitly; there is no automatic skip/retry. ComfyUI owns whether remaining
+  queued jobs continue. Later nodes may still create their own batches.
+
+### Server folder access
+
+ComfyUI's input/output directories are allowed by default. To use another
+directory, create `<ComfyUI user directory>/iridio/allowed_folders.json` on the
+server, for example:
+
+```json
+{"folders": ["/workspace/images"]}
+```
+
+Use an absolute path. This file is read live; a malformed file fails closed.
+Browse/list/thumbnail/execution use the same policy. Links escaping the selected
+folder are refused. There is no web endpoint that grants filesystem access.
+On RunPod keep images and the user directory on persistent storage, and protect
+the ComfyUI server through its normal access controls. This is not a multi-user
+filesystem sandbox against an administrator changing files or links concurrently.
+
+### Workflow persistence
+
+Ordinary workflow JSON keeps the selected filenames and next position, without
+embedding images. Save the workflow to retain that position across restarts.
+The counter is per browser workflow/node; API callers provide their own index.
+There is no global deduplication across browsers and no crash recovery ledger.
+
+With native Save Image and metadata enabled, each PNG contains only its source
+file selection with Next image 1, plus the original index/total in metadata.
+Reopening it restores that single-image workflow; the original source file must
+still exist. Paths/names remain visible in PNG metadata. Use an ordinary workflow
+JSON to resume the complete sequence. Custom savers must retain workflow metadata.
+Folder Image Iterator is currently **top-level only**; subgraphs are rejected.
+
+### Image integration check
+
+Start a fresh temporary test server as below. It creates 50 small test images
+under input/iridio-images; its location is also returned by `/iridio-test/images`.
+Create Folder Image Iterator → Save Image with node IDs 1 and 2, use Browse to
+select that directory and Select all, then queue 100 runs. Before releasing the
+queue, change/reset the browser node to confirm already queued jobs stay fixed.
+Run `python tests/verify_image_queue.py` with the ComfyUI Python environment.
+It releases just the first job, checks its saved PNG while the other 99 remain
+paused, then verifies both complete cycles, pixels, dimensions, metadata, unique
+filenames and absence of iterator/save cache hits. The test server is local-only
+and all its writable directories are temporary.
+
 ## Verification
 
 Run from this repository using an existing ComfyUI Python environment:
 
 ```sh
 COMFYUI_PATH=/path/to/ComfyUI /path/to/ComfyUI/.venv/bin/python -m unittest discover -s tests -v
-node --test tests/prompt_file.test.mjs
+node --test tests/*.test.mjs
 ```
 
 For an isolated integration check, start:
@@ -130,3 +207,9 @@ during serialization, used-prompt restoration and metadata ownership. No live
 RunPod deployment or model inference was tested.
 
 Frontend integration follows the [ComfyUI JavaScript hooks](https://docs.comfy.org/custom-nodes/js/javascript_hooks).
+
+Folder Image Iterator development checks: 35 Python tests and 24 JavaScript tests passed;
+100 browser-queued image jobs saved 100 individual PNGs, plus three single-image
+cycle checks. Native PNG reimport and light/dark themes verified with ComfyUI
+0.45.5 / frontend 1.58.5. RunPod, production proxies and GPU/model inference
+remain unverified. See the [development report](docs/superpowers/plans/2026-11-17-folder-image-iterator-report.md).

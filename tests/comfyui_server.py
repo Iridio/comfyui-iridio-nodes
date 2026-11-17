@@ -30,6 +30,8 @@ args.front_end_root = str(Path(comfyui_frontend_package.__file__).parent / "stat
 
 from aiohttp import web
 import torch
+from PIL import Image
+import folder_paths
 from app.assets.manager import NoAssets
 from comfy_api.latest import io
 import execution
@@ -62,9 +64,20 @@ async def main():
     assert await nodes.load_custom_node(str(Path(__file__).resolve().parents[1]))
     nodes.NODE_CLASS_MAPPINGS["IridioTestPromptOutput"] = TestPromptOutput
     gate = threading.Event()
+    steps = [None]
+    image_folder = Path(folder_paths.get_input_directory()) / 'iridio-images'
+    image_folder.mkdir(parents=True, exist_ok=True)
+    image_names = [f'fixture_{i:03d}.png' for i in range(1, 51)]
+    for i, name in enumerate(image_names, 1):
+        Image.new('RGBA', (8 + i % 3, 9 + i % 2), (i, 0, 0, 128)).save(image_folder / name)
+
+    @server.routes.get('/iridio-test/images')
+    async def image_fixture(request):
+        return web.json_response({'folder': str(image_folder.resolve()), 'names': image_names})
 
     @server.routes.post("/iridio-test/run")
     async def run_queue(request):
+        steps[0] = int(request.query['count']) if 'count' in request.query else None
         gate.set()
         return web.json_response({"running": True})
 
@@ -87,6 +100,10 @@ async def main():
             server.prompt_queue.task_done(item_id, executor.history_result, status,
                                           process_item=lambda item: item[:5])
             server.send_sync("executing", {"node": None, "prompt_id": item[1]}, server.client_id)
+            if steps[0] is not None:
+                steps[0] -= 1
+                if steps[0] == 0:
+                    gate.clear()
 
     server.add_routes()
     await server.setup()
