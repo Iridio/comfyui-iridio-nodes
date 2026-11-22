@@ -38,8 +38,9 @@ export function setupPromptFile(node) {
     error.setAttribute("role", "alert");
     const usedLabel = document.createElement("div");
     const usedPreview = document.createElement("textarea");
+    const usedPromptLabel = "Last executed prompt";
     usedPreview.readOnly = true;
-    usedPreview.setAttribute("aria-label", "prompt");
+    usedPreview.setAttribute("aria-label", usedPromptLabel);
     usedPreview.placeholder = "The executed prompt appears here and is saved in the image workflow.";
     usedPreview.title = "Exact text emitted by this node during its last execution, with its position and total above. Read-only; saved in each image's workflow when metadata is enabled and restored when the image is reopened.";
     usedLabel.title = usedPreview.title;
@@ -48,7 +49,7 @@ export function setupPromptFile(node) {
     const refreshUsed = () => {
         const used = node.properties.iridioUsedPrompt;
         usedPreview.value = used?.text ?? "";
-        usedLabel.textContent = used ? `prompt · ${used.index}/${used.total}` : "prompt";
+        usedLabel.textContent = used ? `${usedPromptLabel} · ${used.index}/${used.total}` : usedPromptLabel;
         node.setDirtyCanvas(true, true);
     };
     controls.append(upload, reset, picker);
@@ -81,10 +82,12 @@ export function setupPromptFile(node) {
             if (!parsePrompts(content).length) throw new Error("The TXT file has no non-empty prompt lines.");
             text.value = content;
             node.properties.iridioFileName = file.name;
+            delete node.properties.iridioUsedPrompt;
             next.value = 1;
             revision++;
             error.textContent = "";
             refresh();
+            refreshUsed();
         } catch (cause) {
             error.textContent = `Upload failed: ${cause.message}. Choose a UTF-8 TXT file.`;
         } finally {

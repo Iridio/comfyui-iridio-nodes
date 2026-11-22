@@ -6,7 +6,7 @@ frontend. Verified with frontend 1.58.5.
 
 ## Registry publishing
 
-Registry metadata targets **iridio-nodes 0.3.1**, publisher **@iridio**.
+Registry metadata targets **iridio-nodes 0.3.2**, publisher **@iridio**.
 Published versions are immutable; increase `version` in `pyproject.toml` for each release.
 
 To publish a release:
@@ -14,10 +14,10 @@ To publish a release:
 1. Create a Registry publishing API key for publisher `iridio`.
 2. In this GitHub repository's **Settings → Secrets and variables → Actions**,
    add a repository secret named `REGISTRY_ACCESS_TOKEN` with that key.
-3. Commit the release files, tag the commit as `v0.3.1`, and push that tag.
+3. Commit the release files, tag the commit as `v0.3.2`, and push that tag.
    **Publish to Comfy Registry** starts automatically on pushes of `v*` tags.
    Branch pushes do not publish. Manual **Run workflow** remains available.
-4. Confirm the action succeeded and the Registry shows version `0.3.1` before
+4. Confirm the action succeeded and the Registry shows version `0.3.2` before
    announcing availability through ComfyUI Manager.
 
 Never commit the key. `.comfyignore` excludes tests,
@@ -26,6 +26,13 @@ The minimum ComfyUI version is the tested baseline, not a claim that earlier
 versions are incompatible. No frontend upgrade dependency is added.
 
 See the [Registry publishing guide](https://docs.comfy.org/registry/publishing).
+
+## 0.3.2
+
+Uploading a valid TXT immediately refreshes the prompt count, resets **Next prompt**
+to 1, and clears the previous text and counter from **Last executed prompt**.
+The box shows the prompt again when a job executes. Failed uploads preserve
+the loaded file and the displayed prompt.
 
 ## 0.3.1
 
@@ -68,9 +75,10 @@ input, for example CLIP Text Encode. `index` and `total` are integer outputs.
   LF, CRLF, CR, Unicode and an initial UTF-8 BOM are supported.
 - **Next prompt** is editable, one-based and starts at **1**. Values past the
   total wrap around. The status shows the loaded filename, total and next position.
-- **prompt** shows the exact text emitted during the last execution, with
-  its one-based index and total. It is read-only and stays unchanged by uploading
-  another file, editing Next prompt or resetting the counter.
+- **Last executed prompt** is a read-only view of the exact text emitted during the
+  last execution, with its one-based index and total. A successful TXT upload clears
+  the view and immediately updates the filename, total and next position. Editing
+  Next prompt or resetting the counter preserves the last executed prompt.
 - Hover over the counter, buttons, file status, used-prompt box or output sockets
   for help explaining their behavior.
 - Every successful queue submission reserves that prompt and advances the
